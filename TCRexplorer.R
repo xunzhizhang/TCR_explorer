@@ -1,4 +1,3 @@
-# This file is for test of Rcapp incooperation.
 library(ggplot2)
 library(Rcpp)
 # library(cairo) for better fig in Linux
@@ -166,7 +165,7 @@ server <- function(input, output) {
       # sourceCpp("maintest.cpp")
       #dist_matrix <- as.matrix(dist(loc_m(tcr_seq, slen)))
       dist_matrix <- loc_m(tcr_seq, slen)
-      save(dist_matrix, file = "saved.dist_matrix.Rdata")
+      # save(dist_matrix, file = "saved.dist_matrix.Rdata")
       # print(dist_matrix[1:5, 1:5])
       # print(tcr_seq)
       # print(slen)
@@ -176,30 +175,49 @@ server <- function(input, output) {
       x <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,1]
       y <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,2]
       color <- colv(slen)
-      results <- as.data.frame(cbind(tcr_seq,x,y,color))
+      # save(tcr_seq, file = "seq.Rdata")
+      results <- as.data.frame(cbind(tcr_seq,x,y,color), stringsAsFactors = FALSE)
       # print(results$x)
       # results$x <- as.numeric(as.character(results$x))
       # results$y <- as.numeric(as.character(results$y))
       # print(results$x)
+      # save(results, file = "matrix.Rdata")
       names(results) <- c("tcr","x","y","color")
+      results$tcr <- as.character(results$tcr)
       results$x <- as.numeric(as.character(results$x))
       results$y <- as.numeric(as.character(results$y))
+      results$color <- as.character(results$color)
+      # save(results, file = "matrix.Rdata")
       return(results)
     }
   }
-  # set ranges for entire data
-  # observeEvent(input$tcr_file,{
-  #   point_result <- safe.read(input$tcr_file, input$select_data)
-  #   if (!is.null(point_result$tcr)){
-  #     ranges$rx <- c(min(point_result$x),max(point_result$x))
-  #     ranges$ry <- c(min(point_result$y),max(point_result$y))
-  #     print(ranges$rx)
-  #   } else {
-  #     ranges$rx <- NULL
-  #     ranges$ry <- NULL
-  # 
-  #   }
-  # })
+  
+  # sort color with freq, and add freq to data
+  color.dist <- function(frame) {
+    # save(frame, file = "6.Rdata")
+    sort_freq <- sort(table(frame$color), decreasing = T, na.last = NA)
+    # avoid transfering to int with one cluster
+    sort_freq <- as.table(sort_freq)
+    # save(sort_freq, file = "5.Rdata")
+    # NA will be generated in table without color, which cannot be directly converted
+    if (is.na(sort_freq[1])){
+      sort_frame <- data.frame(color=c(NA),frequency=c(NA))
+    } else {
+      sort_frame <- as.data.frame(sort_freq, stringsAsFactors = FALSE)
+    }
+    names(sort_frame) <- c("color", "frequency")
+    # save(sort_frame, file = "4.Rdata")
+    # match and add freq after the original data
+    r <- data.frame(tcr=frame$tcr, 
+                    x=frame$x, 
+                    y=frame$y, 
+                    color=frame$color,
+                    frequency=sort_frame$frequency[match(frame$color, sort_frame$color)]
+                    )
+    names(r) <- c("tcr","x","y","color","frequency")
+    # save(r, file = "3.Rdata")
+    return(r)
+  }
   
   
   # Zoom after brush
@@ -220,8 +238,10 @@ server <- function(input, output) {
   # Left plot with entire data
   output$plot_tcr <- renderPlot({
     ggplot(
-      safe.read(input$tcr_file, input$select_data),
-      aes(x = x, y = y)) + geom_point() + 
+      color.dist(safe.read(input$tcr_file, input$select_data)),
+      aes(x = x, y = y, color = color)) + geom_point() +
+      scale_color_manual(values = rainbow(
+        length(table(safe.read(input$tcr_file, input$select_data)$color)))) +
       coord_cartesian(xlim = ranges$rx, ylim = ranges$ry, expand = TRUE) +
       ggtitle("Entire data")
   })
@@ -231,15 +251,18 @@ server <- function(input, output) {
                input$plot_click,
                xvar = "x",
                yvar = "y",
-               threshold = 50,
+               # threshold = 50,
                addDist = TRUE
     )
   })
   # Right plot for zooming
   output$plot_tcr_z <- renderPlot({
     ggplot(
-      safe.read(input$tcr_file, input$select_data),
-      aes(x = x, y = y)) + geom_point() + coord_cartesian(xlim = ranges_z$rzx, ylim = ranges_z$rzy, expand = TRUE) +
+      color.dist(safe.read(input$tcr_file, input$select_data)),
+      aes(x = x, y = y, color = color)) + geom_point() +
+      scale_color_manual(values = rainbow(
+        length(table(safe.read(input$tcr_file, input$select_data)$color)))) +
+      coord_cartesian(xlim = ranges_z$rzx, ylim = ranges_z$rzy, expand = TRUE) +
       ggtitle("Chosen region")
   })
   output$info_z <- renderPrint({
@@ -247,7 +270,7 @@ server <- function(input, output) {
                input$plot_z_click,
                xvar = "x",
                yvar = "y",
-               threshold = 50,
+               # threshold = 50,
                addDist = TRUE
     )
   })
