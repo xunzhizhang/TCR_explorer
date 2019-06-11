@@ -43,17 +43,6 @@ ui <- fluidPage(
 )
 
 server <- function(input, output) {
-  #Rcpp for test
-  cppFunction(
-    'CharacterVector colv(size_t len){
-            CharacterVector color(len);
-            for (size_t i=0; i < len; i++){
-            color[i]="COLOR";
-            }
-            return color;
-    }'
-  )  
-  
   sourceCpp(code = '
             #include <Rcpp.h>
             #include <iostream>
@@ -99,15 +88,23 @@ server <- function(input, output) {
               return d;
             }
             // [[Rcpp::export]]
-            NumericMatrix loc_m(CharacterVector s, size_t len){
+            NumericMatrix score(CharacterVector s, size_t len){
                 loadBLOSUM62();
                 std::vector<std::string> seq = Rcpp::as <std::vector<std::string> > (s);
-                NumericMatrix dmatrix(len, len);
+                NumericMatrix smatrix(len, len);
                 for (size_t i = 0; i < len; i++){
                     for (size_t j = 0; j <= i; j++){
-                        dmatrix(i, j) = di(seq[i], seq[j]);
+                        smatrix(i, j) = di(seq[i], seq[j]);
                     }
                 }
+                return smatrix;
+            }
+            
+            
+            // [[Rcpp::export]]
+            NumericMatrix loc_m(CharacterVector s, size_t len){
+                std::vector<std::string> seq = Rcpp::as <std::vector<std::string> > (s);
+                NumericMatrix dmatrix = score (s, len);
                 for (size_t i = 0; i < len; i++){
                     for (size_t j = 0; j < i; j++){
                         dmatrix(i, j) = 1.0 - 2.0 * di(seq[i], seq[j]) / (dmatrix(i,i) + dmatrix(j, j));
@@ -119,7 +116,54 @@ server <- function(input, output) {
                 }
                 
                 return dmatrix;
-            } 
+            }
+            
+            // [[Rcpp::export]]
+            IntegerVector colv(CharacterVector s, size_t len){
+              std::vector<std::string> seq = Rcpp::as <std::vector<std::string> > (s);
+              NumericMatrix smatrix = score (s, len);
+              const int THREAHOLD = 20;         
+              int totalCluster = 1;  
+              IntegerVector cluster(len, -1);
+              cluster[0] = 1;
+              int maxScore = -1000;
+              int maxIdx = -1000;
+              const int NUM_THREADS = 16;
+            #ifdef _OPENMP
+              omp_set_num_threads(NUM_THREADS);
+            #endif
+              int j;
+              IntegerVector d(len);
+              for (int i = 1; i < len; ++i){
+                  maxScore = -1000;
+            #pragma omp parallel for
+                  for (j = 0; j <= i - 1; ++j){
+                      if (smatrix(i,j) > maxScore){
+                          maxScore = smatrix(i,j);
+                          maxIdx = j;
+                      }
+                  }
+                  if (maxScore > THREAHOLD){         
+                      cluster[i] = cluster[maxIdx];
+                  } else {
+                    totalCluster ++;
+                    cluster[i] = totalCluster;
+                  }
+                  
+              }
+              
+              /*std::stringstream stream;
+              std::vector<std::string> color(len);
+              for (int k = 0; k < len; k++) {
+                  stream << cluster[k];
+                  // push_back??
+                  stream >> color[k];
+                  stream.clear();
+              } */
+              
+               
+              return cluster;
+            }
 
   ')
   # Initilize ranges for axis
@@ -165,7 +209,7 @@ server <- function(input, output) {
       # sourceCpp("maintest.cpp")
       #dist_matrix <- as.matrix(dist(loc_m(tcr_seq, slen)))
       dist_matrix <- loc_m(tcr_seq, slen)
-      # save(dist_matrix, file = "saved.dist_matrix.Rdata")
+      save(dist_matrix, file = "saved.dist_matrix.Rdata")
       # print(dist_matrix[1:5, 1:5])
       # print(tcr_seq)
       # print(slen)
@@ -174,7 +218,7 @@ server <- function(input, output) {
       ret <- eigen(h %*% (-0.5 * dist_matrix) %*% h, symmetric = TRUE)
       x <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,1]
       y <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,2]
-      color <- colv(slen)
+      color <- colv(tcr_seq, slen)
       # save(tcr_seq, file = "seq.Rdata")
       results <- as.data.frame(cbind(tcr_seq,x,y,color), stringsAsFactors = FALSE)
       # print(results$x)
