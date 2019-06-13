@@ -165,7 +165,8 @@ server <- function(input, output) {
   len.test <- function(raw_seq) {
     l <- length(raw_seq)
     if (l >500){
-      cat(red('Warning: >500 rows detected! Only first 500 rows will be analyzed.\n'))
+      print("Warning: >500 rows detected! Only first 500 rows will be analyzed.",
+            quote = FALSE)
       return(head(raw_seq, 500))
     } else {
       return(raw_seq)
