@@ -154,17 +154,6 @@ server <- function(input, output) {
                   }
                   
               }
-              
-              /*std::stringstream stream;
-              std::vector<std::string> color(len);
-              for (int k = 0; k < len; k++) {
-                  stream << cluster[k];
-                  // push_back??
-                  stream >> color[k];
-                  stream.clear();
-              } */
-              
-               
               return cluster;
             }
 
@@ -176,7 +165,7 @@ server <- function(input, output) {
   len.test <- function(raw_seq) {
     l <- length(raw_seq)
     if (l >500){
-      print("Warning: > 500 rows detected! Only fist 500 rows will be analyzed.")
+      cat(red('Warning: >500 rows detected! Only first 500 rows will be analyzed.\n'))
       return(head(raw_seq, 500))
     } else {
       return(raw_seq)
@@ -219,31 +208,24 @@ server <- function(input, output) {
       slen <- length(tcr_seq) 
       dist_matrix <- loc_m(tcr_seq, slen)
       save(dist_matrix, file = "saved.dist_matrix.Rdata")
-      # print(dist_matrix[1:5, 1:5])
-      # print(tcr_seq)
-      # print(slen)
       h <- diag(slen) - matrix(1, slen, 1) %*% matrix(1, 1, slen) / slen
       ret <- eigen(h %*% (-0.5 * dist_matrix) %*% h, symmetric = TRUE)
       x <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,1]
       y <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,2]
       color <- colv(tcr_seq, slen)
       save(color, file = "color.Rdata")
-      # save(tcr_seq, file = "seq.Rdata")
       results <- as.data.frame(cbind(tcr_seq,x,y,color), stringsAsFactors = FALSE)
-      # save(results, file = "matrix.Rdata")
       names(results) <- c("tcr","x","y","color")
       results$tcr <- as.character(results$tcr)
       results$x <- as.numeric(as.character(results$x))
       results$y <- as.numeric(as.character(results$y))
       results$color <- as.character(results$color)
-      # save(results, file = "matrix.Rdata")
       return(results)
     }
   }
   
   # sort color with freq, and add freq to data
   color.dist <- function(frame) {
-    # save(frame, file = "6.Rdata")
     sort_freq <- sort(table(frame$color), decreasing = T, na.last = NA)
     # avoid transfering to int with one cluster
     sort_freq <- as.table(sort_freq)
@@ -256,7 +238,6 @@ server <- function(input, output) {
       sort_frame$color <- rainbow(nrow(sort_frame))
     }
     names(sort_frame) <- c("color", "frequency", "plot_color")
-    # save(sort_frame, file = "4.Rdata")
     # match and add freq after the original data
     r <- data.frame(tcr=frame$tcr, 
                     x=frame$x, 
@@ -270,15 +251,12 @@ server <- function(input, output) {
     return(r)
   }
   
-  
   # Zoom after brush
   observeEvent(input$plot_brush,{
     brush <- input$plot_brush
     if (!is.null(brush)) {
       ranges_z$rzx <- c(brush$xmin, brush$xmax)
       ranges_z$rzy <- c(brush$ymin, brush$ymax)
-      # print(ranges_z$rzx)
-      # print(ranges_z$rzy)
     } else {
       ranges_z$rzx <- NULL
       ranges_z$rzy <- NULL
@@ -288,11 +266,18 @@ server <- function(input, output) {
   # Construct plot with zooming function
   # Left plot with entire data
   output$plot_tcr <- renderPlot({
+    data <- color.dist(safe.read(input$tcr_file, input$select_data))
+    color_table <- data[, c("color", "frequency", "plot_color")]
+    color_table <- color_table[!duplicated(color_table),]         ## extract unduplicated data
+    color_table <- color_table[order(-color_table$frequency),]
+    data$color <- factor(data$color, levels = color_table$color)  ## control the order of color in the figure legend
+    color_table_mapping <- color_table$plot_color
+    names(color_table_mapping) <- color_table$color
     ggplot(
-      color.dist(safe.read(input$tcr_file, input$select_data)),
+      data,
       aes(x = x, y = y, color = color)) + 
       geom_point(aes(color=color)) +
-      scale_color_manual(values = color.dist(safe.read(input$tcr_file, input$select_data))$plot_color) +
+      scale_color_manual(values = color_table_mapping) +
       coord_cartesian(xlim = ranges$rx, ylim = ranges$ry, expand = TRUE) +
       ggtitle("Entire data")
   })
@@ -309,7 +294,7 @@ server <- function(input, output) {
   output$plot_tcr_z <- renderPlot({
     data <- color.dist(safe.read(input$tcr_file, input$select_data))
     color_table <- data[, c("color", "frequency", "plot_color")]
-    color_table <- color_table[!duplicated(color_table),]
+    color_table <- color_table[!duplicated(color_table),]         ## extract unduplicated data
     color_table <- color_table[order(-color_table$frequency),]
     data$color <- factor(data$color, levels = color_table$color)  ## control the order of color in the figure legend
     color_table_mapping <- color_table$plot_color
@@ -319,7 +304,7 @@ server <- function(input, output) {
       aes(x = x, y = y)) + 
       geom_point(aes(col=color)) +
       scale_color_manual(values = color_table_mapping) +
-      # coord_cartesian(xlim = ranges_z$rzx, ylim = ranges_z$rzy, expand = TRUE) +
+      coord_cartesian(xlim = ranges_z$rzx, ylim = ranges_z$rzy, expand = TRUE) +
       ggtitle("Chosen region") 
   })
   output$info_z <- renderPrint({
@@ -335,8 +320,8 @@ server <- function(input, output) {
     filename = function() {
       paste("TCR_seq_example", "csv", sep = ".")
     },
-    content = function(p) {
-      file.copy("TCR_seq_example.csv", p)
+    content = function(file1) {
+      file.copy("TCR_seq_example.csv", file1)
     },
     contentType = "text/csv"
   )
@@ -346,8 +331,8 @@ server <- function(input, output) {
     filename = function() {
       paste("TCR_analysis-", Sys.Date(), ".csv", sep = "")
     },
-    content = function(file) {
-      write.csv(safe.read(input$tcr_file, input$select_data), file, row.names=FALSE)
+    content = function(file2) {
+      write.csv(safe.read(input$tcr_file, input$select_data), file2, row.names=FALSE)
     },
     contentType = "text/csv"
   )
