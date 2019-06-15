@@ -5,43 +5,70 @@ library(shiny)
 options(stringsAsFactors = FALSE)
 
 ui <- fluidPage(
-  tags$h1("TCR Sequences",
-          style = "font-family: 'Imgact'; color: #00008B;"),
+  tags$h1(tags$strong("TCR Explorer"), align = "center",
+          style = "font-family: Georgia; color: #000080;"),
+  tags$h5(textOutput("time"), align = "right"),
   tags$hr(),
-  selectInput("select_data", "Select data demo, user's data or raw TCR sequences",
-              c("Data demo" = "d",
-                "User's data" = "u",
-                "TCR sequences" = "t")),
-  fileInput("tcr_file","Upload the .csv file (format as: tcr,x,y,color)",
-            multiple=FALSE,
-            accept=c(".csv")
-  ),
-  downloadButton('download_example', 'Download example raw sequences'),
-  downloadButton('download_result', 'Download analyzed results'),
-  
-  # Interactive plot
-  tags$h4("Brush to zoom the target region"),
-  fluidRow(
-    column(
-      width = 6,
-      plotOutput(
-        "plot_tcr",
-        click = "plot_click",
-        brush = brushOpts(id = "plot_brush",
-                          resetOnNew = TRUE)
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("select_data", "Select demo data, user's data or raw TCR sequences",
+                  c("Demo data" = "d",
+                    "Visualize your data" = "u",
+                    "Analyze your data" = "t")),
+      tags$br(),
+      fileInput("tcr_file","Upload the .csv file (format as: tcr,x,y,color)",
+                multiple=FALSE,
+                accept=c(".csv")
       ),
-      verbatimTextOutput("info")
+      downloadButton('download_example', 'Example sequences'),
+      downloadButton('download_result', 'Analyzed results'),
+      tags$hr(),
+      tags$p(tags$strong("Tips")),
+      tags$p("This app analyzes the distances among TCR sequences and devided them into
+             clusters of antigens. The results are visualized with scatter plots."),
+      tags$p("Three options are provided in the select box. \"Demo data\" provides an 
+             example for entire analyzed results; \"Visualize your data\" is used to convert
+             your entire data into plots; \"Analyze your data\" is used to analyze raw TCR 
+             sequences. The format of entire 
+             data should be the same as that of downloadable results, while an example of 
+             raw sequences is provided by \"Example sequences\"."),
+      tags$p("More details and the source codes on",
+             tags$a(href = "https://github.com/xunzhizhang/TCR_explorer.git",
+                    "GitHub")
+             ),
+      tags$p("Created by Xunzhi Zhang, 2019"),
+      width = 4
     ),
-    column(
-      width = 6,
-      plotOutput(
-        "plot_tcr_z",
-        click = "plot_z_click"
-      ),
-      verbatimTextOutput("info_z")
-    )
     
+    mainPanel(
+      # Interactive plot
+      tags$h4("Brush on the left plot to zoom the target region"),
+      fluidRow(
+        column(
+          width = 6,
+          plotOutput(
+            "plot_tcr",
+            width = "100%", 
+            click = "plot_click",
+            brush = brushOpts(id = "plot_brush",
+                              resetOnNew = TRUE)
+          ),
+          verbatimTextOutput("info")
+        ),
+        column(
+          width = 6,
+          plotOutput(
+            "plot_tcr_z",
+            width = "100%", 
+            click = "plot_z_click"
+          ),
+          verbatimTextOutput("info_z")
+        )
+        
+      )
+    )
   )
+  
 )
 
 server <- function(input, output) {
@@ -165,8 +192,7 @@ server <- function(input, output) {
   len.test <- function(raw_seq) {
     l <- length(raw_seq)
     if (l >500){
-      print("Warning: >500 rows detected! Only first 500 rows will be analyzed.",
-            quote = FALSE)
+      cat("Warning: >500 rows detected! Only first 500 rows will be analyzed.\n")
       return(head(raw_seq, 500))
     } else {
       return(raw_seq)
@@ -337,6 +363,11 @@ server <- function(input, output) {
     },
     contentType = "text/csv"
   )
+  # Current time
+  output$time <- renderText({
+    invalidateLater(1000)
+    format(Sys.time())
+  })
 }
 
 shinyApp(ui = ui, server = server)
