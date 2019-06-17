@@ -4,62 +4,7 @@ library(markdown)
 # library(cairo) for better fig in Linux
 library(shiny)
 options(stringsAsFactors = FALSE)
-
-ui <- fluidPage(
-  tags$h1(tags$strong("TCR Explorer"), align = "center",
-          style = "font-family: Georgia; color: #000080;"),
-  tags$h5(textOutput("time"), align = "right"),
-  tags$hr(),
-  sidebarLayout(
-    sidebarPanel(
-      selectInput("select_data", "Select demo data, user's data or raw TCR sequences",
-                  c("Demo data" = "d",
-                    "Visualize your data" = "u",
-                    "Analyze your data" = "t")),
-      tags$br(),
-      fileInput("tcr_file","Upload the .csv file (format as: tcr,x,y,color)",
-                multiple=FALSE,
-                accept=c(".csv")
-      ),
-      downloadButton('download_example', 'Example sequences'),
-      downloadButton('download_result', 'Analyzed results'),
-      tags$hr(),
-      div(id = "tips", includeMarkdown("Tips.md")),
-      width = 4
-    ),
-    
-    mainPanel(
-      # Interactive plot
-      tags$h4("Brush on the left plot to zoom the target region"),
-      fluidRow(
-        column(
-          width = 6,
-          plotOutput(
-            "plot_tcr",
-            width = "100%", 
-            click = "plot_click",
-            brush = brushOpts(id = "plot_brush",
-                              resetOnNew = TRUE)
-          ),
-          verbatimTextOutput("info")
-        ),
-        column(
-          width = 6,
-          plotOutput(
-            "plot_tcr_z",
-            width = "100%", 
-            click = "plot_z_click"
-          ),
-          verbatimTextOutput("info_z")
-        )
-        
-      )
-    )
-  )
-  
-)
-
-server <- function(input, output) {
+function(input, output) {
   sourceCpp(code = '
             #include <Rcpp.h>
             #include <iostream>
@@ -222,7 +167,6 @@ server <- function(input, output) {
       tcr_seq <- len.test(tcr_seq)
       slen <- length(tcr_seq) 
       dist_matrix <- loc_m(tcr_seq, slen)
-      save(dist_matrix, file = "saved.dist_matrix.Rdata")
       h <- diag(slen) - matrix(1, slen, 1) %*% matrix(1, 1, slen) / slen
       ret <- eigen(h %*% (-0.5 * dist_matrix) %*% h, symmetric = TRUE)
       x <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,1]
@@ -243,7 +187,6 @@ server <- function(input, output) {
     sort_freq <- sort(table(frame$color), decreasing = T, na.last = NA)
     # avoid transfering to int with one cluster
     sort_freq <- as.table(sort_freq)
-    save(sort_freq, file = "5.Rdata")
     # NA will be generated in table without color, which cannot be directly converted
     if (is.na(sort_freq[1])){
       sort_frame <- data.frame(color=c(NA),frequency=c(NA), plot_color=c("#ffffff"))
@@ -259,9 +202,8 @@ server <- function(input, output) {
                     color=frame$color,
                     frequency=sort_frame$frequency[match(frame$color, sort_frame$color)],
                     plot_color=sort_frame$plot_color[match(frame$color, sort_frame$color)]
-                    )
+    )
     names(r) <- c("tcr","x","y","color","frequency","plot_color")
-    save(r, file = "3.Rdata")
     return(r)
   }
   
@@ -356,5 +298,3 @@ server <- function(input, output) {
     format(Sys.time())
   })
 }
-
-shinyApp(ui = ui, server = server)
