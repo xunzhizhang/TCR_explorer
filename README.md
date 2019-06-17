@@ -19,7 +19,7 @@ data” is used to convert your entire data into plots; “Analyze your
 data” is used to analyze raw TCR sequences. The format of entire data
 should be the same as that of downloadable results, while an example of
 raw sequences is provided by “Example sequences”. Different methods for
-coordinate calculation could also been selected.
+coordinate calculation could also be selected.
 
  
 
