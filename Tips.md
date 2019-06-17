@@ -4,7 +4,7 @@ This app analyzes the distances among TCR sequences and devided them
 into clusters of antigens. The results are visualized with scatter
 plots.
 
-Three options are provided in the select box. “Demo data” provides an
+Three options are provided for data input. “Demo data” provides an
 example for entire analyzed results; “Visualize your data” is used to
 convert your entire data into plots; “Analyze your data” is used to
 analyze raw TCR sequences. The format of entire data should be the same

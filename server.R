@@ -22,8 +22,8 @@ function(input, output) {
   # Read demo data/user data/TCR seq
   # Read the file as a data frame, 1st line as header, return empty data frame without input
   # Note: a .csv file with only seq column will be treated to generate entire file
-  safe.read <- function(docu, slc) {
-    if (slc == "d"){
+  safe.read <- function(docu, slc_data, slc_method) {
+    if (slc_data == "d"){
       return(
         read.csv(
           "tcr.data.demo.csv",  # file under the same folder
@@ -35,7 +35,7 @@ function(input, output) {
     } else if (is.null(docu)) {
       empdata<-data.frame(tcr=c(NA),x=c(NA),y=c(NA),color=c(NA)) # color is required here
       return(empdata)
-    } else if (slc == "u") {
+    } else if (slc_data == "u") {
       return(read.csv(
         docu$datapath,
         header = TRUE,
@@ -55,10 +55,20 @@ function(input, output) {
       tcr_seq <- len.test(tcr_seq)
       slen <- length(tcr_seq) 
       dist_matrix <- loc_m(tcr_seq, slen)
-      h <- diag(slen) - matrix(1, slen, 1) %*% matrix(1, 1, slen) / slen
-      ret <- eigen(h %*% (-0.5 * dist_matrix) %*% h, symmetric = TRUE)
-      x <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,1]
-      y <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,2]
+      # calculate the coordinates
+          if (slc_method == "p"){
+            h <- diag(slen) - matrix(1, slen, 1) %*% matrix(1, 1, slen) / slen
+            ret <- eigen(h %*% (-0.5 * dist_matrix) %*% h, symmetric = TRUE)
+            x <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,1]
+            y <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,2]
+            cat("PCA\n")
+          } else {
+            h <- diag(slen) - matrix(1, slen, 1) %*% matrix(1, 1, slen) / slen
+            ret <- eigen(h %*% (-0.5 * dist_matrix) %*% h, symmetric = TRUE)
+            x <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,1]
+            y <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,2]
+            cat("Another Method\n")
+          }
       color <- colv(tcr_seq, slen)
       results <- as.data.frame(cbind(tcr_seq,x,y,color), stringsAsFactors = FALSE)
       names(results) <- c("tcr","x","y","color")
@@ -110,7 +120,7 @@ function(input, output) {
   # Construct plot with zooming function
   # Left plot with entire data
   output$plot_tcr <- renderPlot({
-    data <- color.dist(safe.read(input$tcr_file, input$select_data))
+    data <- color.dist(safe.read(input$tcr_file, input$select_data, input$select_method))
     color_table <- data[, c("color", "frequency", "plot_color")]
     color_table <- color_table[!duplicated(color_table),]         ## extract unduplicated data
     color_table <- color_table[order(-color_table$frequency),]
@@ -127,7 +137,7 @@ function(input, output) {
   })
   
   output$info <- renderPrint({
-    nearPoints(safe.read(input$tcr_file, input$select_data),
+    nearPoints(safe.read(input$tcr_file, input$select_data, input$select_method),
                input$plot_click,
                xvar = "x",
                yvar = "y",
@@ -136,7 +146,7 @@ function(input, output) {
   })
   # Right plot for zooming
   output$plot_tcr_z <- renderPlot({
-    data <- color.dist(safe.read(input$tcr_file, input$select_data))
+    data <- color.dist(safe.read(input$tcr_file, input$select_data, input$select_method))
     color_table <- data[, c("color", "frequency", "plot_color")]
     color_table <- color_table[!duplicated(color_table),]         ## extract unduplicated data
     color_table <- color_table[order(-color_table$frequency),]
@@ -152,7 +162,7 @@ function(input, output) {
       ggtitle("Chosen region") 
   })
   output$info_z <- renderPrint({
-    nearPoints(safe.read(input$tcr_file, input$select_data),
+    nearPoints(safe.read(input$tcr_file, input$select_data, input$select_method),
                input$plot_z_click,
                xvar = "x",
                yvar = "y",
@@ -176,7 +186,8 @@ function(input, output) {
       paste("TCR_analysis-", Sys.Date(), ".csv", sep = "")
     },
     content = function(file2) {
-      write.csv(safe.read(input$tcr_file, input$select_data), file2, row.names=FALSE)
+      write.csv(safe.read(input$tcr_file, input$select_data, input$select_method), 
+                file2, row.names=FALSE)
     },
     contentType = "text/csv"
   )

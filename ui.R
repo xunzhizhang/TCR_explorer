@@ -16,6 +16,10 @@ fluidPage(
                     "Visualize your data" = "u",
                     "Analyze your data" = "t")),
       tags$br(),
+      selectInput("select_method","Select method to generate the coordinates",
+                  c("PCA" = "p",
+                    "Another one" = "a")),
+      tags$br(),
       fileInput("tcr_file","Upload the .csv file (format as: tcr,x,y,color)",
                 multiple=FALSE,
                 accept=c(".csv")

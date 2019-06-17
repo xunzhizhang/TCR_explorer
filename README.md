@@ -13,12 +13,13 @@ To apply this app, please download all the files in this repository and
 keep them in the same relative path. Library “shiny”, “ggplot2”,
 “markdown” and “Rcpp” are required for the program.
 
-When the app is run, three options are provided in the select box. “Demo
+When the app is run, three options are provided for data input. “Demo
 data” provides an example for entire analyzed results; “Visualize your
 data” is used to convert your entire data into plots; “Analyze your
 data” is used to analyze raw TCR sequences. The format of entire data
 should be the same as that of downloadable results, while an example of
-raw sequences is provided by “Example sequences”.
+raw sequences is provided by “Example sequences”. Different methods for
+coordinate calculation could also been selected.
 
  
 
