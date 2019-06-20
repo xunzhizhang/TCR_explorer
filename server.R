@@ -1,6 +1,7 @@
 library(ggplot2)
 library(Rcpp)
 library(markdown)
+library(Rtsne)
 # library(cairo) for better fig in Linux
 library(shiny)
 options(stringsAsFactors = FALSE)
@@ -63,11 +64,20 @@ function(input, output) {
             y <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,2]
             cat("PCA\n")
           } else {
-            h <- diag(slen) - matrix(1, slen, 1) %*% matrix(1, 1, slen) / slen
-            ret <- eigen(h %*% (-0.5 * dist_matrix) %*% h, symmetric = TRUE)
-            x <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,1]
-            y <- ret$vectors [, 1:2] %*% diag(ret$values[1:2])[,2]
-            cat("Another Method\n")
+            # at least >3*perplexity+1 rows are required
+            set.seed(1)
+            tsne <- Rtsne(
+                          dist_matrix,
+                          dims = 2,
+                          pca = TRUE,
+                          initial_dims = 50,
+                          perplexity = 30,
+                          max_iter = 1000,
+                          theta = 0.0
+                          )
+            x <- tsne$Y[,1]
+            y <- tsne$Y[,2]
+            cat("t-SNE\n")
           }
       color <- colv(tcr_seq, slen)
       results <- as.data.frame(cbind(tcr_seq,x,y,color), stringsAsFactors = FALSE)

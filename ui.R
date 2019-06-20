@@ -1,6 +1,7 @@
 library(ggplot2)
 library(Rcpp)
 library(markdown)
+library(Rtsne)
 # library(cairo) for better fig in Linux
 library(shiny)
 options(stringsAsFactors = FALSE)
@@ -18,7 +19,7 @@ fluidPage(
       tags$br(),
       selectInput("select_method","Select method to generate the coordinates",
                   c("PCA" = "p",
-                    "Another one" = "a")),
+                    "t-SNE (PCA to obtain Top 50 elements)" = "s")),
       tags$br(),
       fileInput("tcr_file","Upload the .csv file (format as: tcr,x,y,color)",
                 multiple=FALSE,
